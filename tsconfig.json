@@ -7,9 +7,6 @@
       "path": "./web"
     },
     {
-      "path": "./server-e2e"
-    },
-    {
       "path": "./server"
     }
   ],
