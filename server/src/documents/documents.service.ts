@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable,NotFoundException } from '@nestjs/common';
 import { db } from '../database/database';
 import { documents } from '../database/schema';
 import { IngestDocumentDto } from './dtos/upload_doc.dto';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class DocumentsService {
@@ -32,4 +33,18 @@ export class DocumentsService {
       })
       .from(documents);
   }
+
+  async findOne(id: number) {
+  const [document] = await db
+    .select()
+    .from(documents)
+    .where(eq(documents.id, id))
+    .limit(1);
+
+  if (!document) {
+    throw new NotFoundException(`Document with ID ${id} not found`);
+  }
+
+  return document;
+}
 }
