@@ -19,4 +19,17 @@ export class DocumentsService {
 
     return document;
   }
+
+  async findAll() {
+    return db
+      .select({
+        id: documents.id,
+        title: documents.title,
+        sourceType: documents.sourceType,
+        sourceUrl: documents.sourceUrl,
+        status: documents.status,
+        createdAt: documents.createdAt,
+      })
+      .from(documents);
+  }
 }
