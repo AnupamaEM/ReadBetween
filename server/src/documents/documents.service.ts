@@ -3,9 +3,11 @@ import { db } from '../database/database';
 import { documents } from '../database/schema';
 import { IngestDocumentDto } from './dtos/upload_doc.dto';
 import { eq } from 'drizzle-orm';
+import { ChunkingService } from '../ingestion/chunking.service';
 
 @Injectable()
 export class DocumentsService {
+  constructor(private readonly chunkingService: ChunkingService) {}
   async ingest(dto: IngestDocumentDto) {
     const [document] = await db
       .insert(documents)
@@ -17,8 +19,11 @@ export class DocumentsService {
         status: 'COMPLETED',
       })
       .returning();
+      const chunks = this.chunkingService.chunkText(
+    dto.content ?? '',
+  );
 
-    return document;
+    return { document, chunks };
   }
 
   async findAll() {
