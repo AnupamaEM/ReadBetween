@@ -1,6 +1,6 @@
 import { Injectable,NotFoundException } from '@nestjs/common';
 import { db } from '../database/database';
-import { documents } from '../database/schema';
+import {documents,documentChunks} from '../database/schema';
 import { IngestDocumentDto } from './dtos/upload_doc.dto';
 import { eq } from 'drizzle-orm';
 import { ChunkingService } from '../ingestion/chunking.service';
@@ -47,9 +47,24 @@ export class DocumentsService {
     .limit(1);
 
   if (!document) {
-    throw new NotFoundException(`Document with ID ${id} not found`);
+    throw new NotFoundException(
+      `Document with ID ${id} not found`,
+    );
   }
 
-  return document;
+  const chunks = await db
+    .select({
+      id: documentChunks.id,
+      chunkIndex: documentChunks.chunkIndex,
+      content: documentChunks.content,
+      embedding: documentChunks.embedding,
+    })
+    .from(documentChunks)
+    .where(eq(documentChunks.documentId, id));
+
+  return {
+    ...document,
+    chunks,
+  };
 }
 }
