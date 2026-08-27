@@ -9,7 +9,8 @@ import { ChunkingService } from '../ingestion/chunking.service';
 export class DocumentsService {
   constructor(private readonly chunkingService: ChunkingService) {}
   async ingest(dto: IngestDocumentDto) {
-    const [document] = await db
+  return db.transaction(async (tx) => {
+    const [document] = await tx
       .insert(documents)
       .values({
         title: dto.title,
@@ -19,12 +20,27 @@ export class DocumentsService {
         status: 'COMPLETED',
       })
       .returning();
-      const chunks = this.chunkingService.chunkText(
-    dto.content ?? '',
-  );
 
-    return { document, chunks };
-  }
+    const chunks = this.chunkingService.chunkText(
+      dto.content ?? '',
+    );
+
+    if (chunks.length > 0) {
+      await tx.insert(documentChunks).values(
+        chunks.map((chunk) => ({
+          documentId: document.id,
+          chunkIndex: chunk.index,
+          content: chunk.content,
+        })),
+      );
+    }
+
+    return {
+      document,
+      chunks,
+    };
+  });
+}
 
   async findAll() {
     return db
