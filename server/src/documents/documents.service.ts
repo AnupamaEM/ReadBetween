@@ -4,43 +4,88 @@ import {documents,documentChunks} from '../database/schema';
 import { IngestDocumentDto } from './dtos/upload_doc.dto';
 import { eq } from 'drizzle-orm';
 import { ChunkingService } from '../ingestion/chunking.service';
+import { EmbeddingService } from '../ai/embedding.service';
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly chunkingService: ChunkingService) {}
+  constructor(
+    private readonly chunkingService: ChunkingService,
+    private readonly embeddingService: EmbeddingService,
+  ) {}
   async ingest(dto: IngestDocumentDto) {
-  return db.transaction(async (tx) => {
-    const [document] = await tx
+    const insertResult = db
       .insert(documents)
       .values({
         title: dto.title,
         sourceType: dto.type,
         sourceUrl: dto.url ?? null,
         rawContent: dto.content ?? '',
-        status: 'COMPLETED',
+        status: 'PROCESSING',
       })
-      .returning();
+      .run();
+
+    const documentId = Number(insertResult.lastInsertRowid);
 
     const chunks = this.chunkingService.chunkText(
       dto.content ?? '',
     );
 
-    if (chunks.length > 0) {
-      await tx.insert(documentChunks).values(
-        chunks.map((chunk) => ({
-          documentId: document.id,
-          chunkIndex: chunk.index,
-          content: chunk.content,
-        })),
+    let chunksWithEmbeddings: Array<{
+      documentId: number;
+      chunkIndex: number;
+      content: string;
+      embedding: string;
+    }> = [];
+
+    try {
+      chunksWithEmbeddings = await Promise.all(
+        chunks.map(async (chunk) => {
+          const embedding =
+            await this.embeddingService.generateEmbedding(
+              chunk.content,
+            );
+
+          return {
+            documentId,
+            chunkIndex: chunk.index,
+            content: chunk.content,
+            embedding: JSON.stringify(embedding),
+          };
+        }),
       );
+    } catch (error) {
+      db.update(documents)
+        .set({
+          status: 'FAILED',
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(documents.id, documentId))
+        .run();
+
+      throw error;
     }
 
+    if (chunksWithEmbeddings.length > 0) {
+      db.insert(documentChunks)
+        .values(chunksWithEmbeddings)
+        .run();
+    }
+
+    const updatedDocument = db
+      .update(documents)
+      .set({
+        status: 'COMPLETED',
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(documents.id, documentId))
+      .returning()
+      .get();
+
     return {
-      document,
-      chunks,
+      document: updatedDocument,
+      chunks: chunksWithEmbeddings,
     };
-  });
-}
+  }
 
   async findAll() {
     return db
