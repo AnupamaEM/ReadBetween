@@ -9,12 +9,18 @@ import {
 import { DocumentsService } from './documents.service';
 import { IngestDocumentDto } from './dtos/upload_doc.dto';
 import { EmbeddingService } from '../ai/embedding.service';
+import { SearchService } from '../ai/search.service';
+
+import { QueryDto } from './dtos/query.dto';
+import { QueryService } from './query.service';
 
 @Controller()
 export class DocumentsController {
   constructor(
     private readonly documentsService: DocumentsService,
     private readonly embeddingService: EmbeddingService,
+    private readonly searchService: SearchService,
+    private readonly queryService: QueryService,
   ) {}
 
   @Post('ingest')
@@ -53,4 +59,26 @@ export class DocumentsController {
       embedding,
     };
   }
+
+  @Post('search')
+async search(
+  @Body()
+  body: {
+    documentId: number;
+    question: string;
+  },
+) {
+  return this.searchService.search(
+    body.documentId,
+    body.question,
+  );
+}
+
+@Post('query')
+async query(@Body() dto: QueryDto) {
+  return this.queryService.query(
+    dto.documentId,
+    dto.question,
+  );
+}
 }

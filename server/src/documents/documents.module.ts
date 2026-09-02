@@ -6,9 +6,11 @@ import { DocumentsService } from './documents.service';
 import { IngestionModule } from '../ingestion/ingestion.module';
 import { AiModule } from '../ai/ai.module';
 
+import { QueryService } from './query.service';
+
 @Module({
   imports: [IngestionModule, AiModule],
   controllers: [DocumentsController],
-  providers: [DocumentsService],
+  providers: [DocumentsService, QueryService],
 })
 export class DocumentsModule {}
