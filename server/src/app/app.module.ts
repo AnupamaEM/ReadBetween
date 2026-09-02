@@ -3,9 +3,15 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DocumentsModule } from '../documents/documents.module';
 import { IngestionModule } from '../ingestion/ingestion.module';
+import { AiModule } from '../ai/ai.module';
+import { ConfigModule } from '@nestjs/config';
+
 
 @Module({
-  imports: [DocumentsModule,IngestionModule],
+  imports: [ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    DocumentsModule,IngestionModule,AiModule],
   controllers: [AppController],
   providers: [AppService],
 })
